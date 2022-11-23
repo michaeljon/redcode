@@ -15,8 +15,8 @@ void disassemble_instruction(unsigned long instruction, int offset)
     int addrModeB = (instruction & OP_B_ADDRMODE_MASK) >> OFFSET_B_ADDRMODE;
     int addrB = (instruction & OP_B_ADDR_MASK) >> OFFSET_B_ADDR;
 
-    addrA = FROMSTORAGE(addrA);
-    addrB = FROMSTORAGE(addrB);
+    addrA = from_storage(addrA);
+    addrB = from_storage(addrB);
 
     if (opcode_val == OPCODE_DAT)
     {
@@ -46,7 +46,7 @@ void disassemble()
 {
     for (int pc = 0; pc < program_size; pc++)
     {
-        disassemble_instruction(PROGRAM[pc], pc);
+        disassemble_instruction(core[pc], pc);
     }
 }
 
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
     int read = fread(&program_size, sizeof(program_size), 1, fpin);
     if (read > 0)
     {
-        read = fread((void *)PROGRAM, sizeof(unsigned long), program_size, fpin);
+        read = fread((void *)core, sizeof(unsigned long), program_size, fpin);
         if (read == program_size)
         {
             disassemble();

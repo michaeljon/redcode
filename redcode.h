@@ -3,13 +3,13 @@
 
 // size of memory we support
 #define CORESIZE 1024
-#define OFFSET(p, a) ((((p + a) % CORESIZE) + CORESIZE) % CORESIZE)
+// #define OFFSET(p, a) ((((p + a) % CORESIZE) + CORESIZE) % CORESIZE)
 
 // length of a line in the source code
 #define INSTSIZE 80
 
 // instructions values for the assembler
-enum OPCODES
+typedef enum
 {
     OPCODE_ERR = -1,
 
@@ -22,15 +22,21 @@ enum OPCODES
     OPCODE_JMG = 6,
     OPCODE_DJZ = 7,
     OPCODE_CMP = 8,
-};
+} opcode_t;
 
 // address mode values for the assembler
-enum ADDRMODES
+typedef enum
 {
     MODE_IMMEDIATE = 0,
     MODE_DIRECT = 1,
     MODE_INDIRECT = 2
-};
+} addrmode_t;
+
+typedef enum
+{
+    PLAYER1 = 0,
+    PLAYER2 = 1
+} player_t;
 
 // used by the disassembler for extracting the instrution components
 enum MASKS
@@ -73,17 +79,9 @@ extern const char *OPCODES[];
 extern const char *ADDRMODES[];
 
 extern int program_size;
-extern unsigned long PROGRAM[];
+extern int programCounters[];
 
-// set and clear "owner" of a cell, for display purposes
-#define REMOVE_OWNER(c) (c & PLAYER_UNMASK)
-#define SET_OWNER(c, p) (c = (unsigned long)((c | (p << OFFSET_PLAYER)) & 0xffffffff))
-
-#define CLEAR_OWNED(c) (c & TAKEN_UNMASK)
-#define SET_OWNED(c) (c = (unsigned long)((c | (1 << OFFSET_OWNER)) & 0xffffffff))
-
-// move the player p's program counter
-#define STEP(p) (programCounters[p] = (programCounters[p] + 1) % CORESIZE)
+extern unsigned long core[];
 
 // these macros assume we have 10 bits of storage
 // where the high order bit is the sign bit, meaning
@@ -92,11 +90,64 @@ extern unsigned long PROGRAM[];
 #define MAX_VALUE 0x1ff
 #define MIN_VALUE -MAX_VALUE
 
-#define TOSTORAGE(_x) ((_x >= 0) ? _x : (~_x + 1) | 0x200)
-#define FROMSTORAGE(_x) ((_x & 0x200) == 0 ? _x : ~((_x & 0x1ff) - 1))
-#define DECODE(_s, _x) (FROMSTORAGE((_s == 0) ? (_x & OP_A_ADDR_MASK) >> OFFSET_A_ADDR : (_x & OP_B_ADDR_MASK) >> OFFSET_B_ADDR))
-
 // define how faster the app should run
 #define INST_PER_SECOND 32
+
+/**
+ * calculates an offset into our core given an address
+ */
+inline unsigned long offset(int pc, int addr)
+{
+    return ((((pc + addr) % CORESIZE) + CORESIZE) % CORESIZE);
+}
+
+/**
+ * sets the owner and owned flag on a cell
+ */
+inline void set_owner(unsigned long *ploc, player_t player)
+{
+    *ploc = (unsigned long)((*ploc | (player << OFFSET_PLAYER)) & 0xffffffff);
+    *ploc = (unsigned long)((*ploc | (1 << OFFSET_OWNER)) & 0xffffffff);
+}
+
+/**
+ * clears the owner flag from a cell's value and returns it
+ */
+inline unsigned long clear_owner_flag(unsigned long loc)
+{
+    return loc & PLAYER_UNMASK;
+}
+
+/**
+ * clears the owne flag from a cell's value and returns it
+ */
+inline unsigned long clear_owned_flag(unsigned long loc)
+{
+    return loc & TAKEN_UNMASK;
+}
+
+/**
+ * handles value conversion
+ */
+inline short to_storage(unsigned long operand)
+{
+    return ((operand >= 0) ? operand : (~operand + 1) | 0x200);
+}
+
+inline short from_storage(unsigned long operand)
+{
+    return ((operand & 0x200) == 0 ? operand : ~((operand & 0x1ff) - 1));
+}
+
+inline short decode(player_t player, unsigned long operand)
+{
+    return (from_storage(
+        (player == PLAYER1) ? (operand & OP_A_ADDR_MASK) >> OFFSET_A_ADDR : (operand & OP_B_ADDR_MASK) >> OFFSET_B_ADDR));
+}
+
+inline void increment_pc(player_t player)
+{
+    (programCounters[player] = (programCounters[player] + 1) % CORESIZE);
+}
 
 #endif

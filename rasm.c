@@ -148,7 +148,7 @@ int assemble(FILE *fpin)
             return -1;
         }
 
-        PROGRAM[pc++] = word;
+        core[pc++] = word;
 
         if (pc > CORESIZE)
         {
@@ -163,7 +163,7 @@ int assemble(FILE *fpin)
 void output(FILE *fp)
 {
     fwrite((void *)&program_size, sizeof(program_size), 1, fp);
-    fwrite((void *)PROGRAM, sizeof(PROGRAM[0]), program_size, fp);
+    fwrite((void *)core, sizeof(core[0]), program_size, fp);
 }
 
 void usage(char *program)

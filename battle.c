@@ -13,7 +13,6 @@ const char *PLAYER2_COLOR = "\x1b[94;107m";
 
 const int row_length = 0x10;
 
-int programCounters[2];
 int iterations = 0;
 
 static char instruction_buffer[INSTSIZE];
@@ -34,8 +33,8 @@ char *disassemble_instruction(unsigned long instruction)
     int addrModeB = (instruction & OP_B_ADDRMODE_MASK) >> OFFSET_B_ADDRMODE;
     int addrB = (instruction & OP_B_ADDR_MASK) >> OFFSET_B_ADDR;
 
-    addrA = FROMSTORAGE(addrA);
-    addrB = FROMSTORAGE(addrB);
+    addrA = from_storage(addrA);
+    addrB = from_storage(addrB);
 
     if (opcode_val == OPCODE_DAT)
     {
@@ -89,13 +88,13 @@ int lea(int player, int mode, int value)
         return value;
 
     case MODE_DIRECT:
-        return REMOVE_OWNER(OFFSET(pc, value));
+        return clear_owner_flag(offset(pc, value));
 
     case MODE_INDIRECT:
     {
-        int addr = PROGRAM[OFFSET(pc, value)];
-        int ownerless_addr = REMOVE_OWNER(addr);
-        return OFFSET(pc, ownerless_addr);
+        int addr = core[offset(pc, value)];
+        int ownerless_addr = clear_owner_flag(addr);
+        return offset(pc, ownerless_addr);
     }
 
     default:
@@ -114,13 +113,13 @@ unsigned long operand(int player, int mode, int value)
         return value;
 
     case MODE_DIRECT:
-        return REMOVE_OWNER(PROGRAM[OFFSET(pc, value)]);
+        return clear_owner_flag(core[offset(pc, value)]);
 
     case MODE_INDIRECT:
     {
-        int addr = PROGRAM[OFFSET(pc, value)];
-        int ownerless_addr = REMOVE_OWNER(addr);
-        return REMOVE_OWNER(PROGRAM[OFFSET(pc, ownerless_addr)]);
+        int addr = core[offset(pc, value)];
+        int ownerless_addr = clear_owner_flag(addr);
+        return clear_owner_flag(core[offset(pc, ownerless_addr)]);
     }
 
     default:
@@ -141,10 +140,9 @@ int mov(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueA = operand(player, modeA, addrA);
     int address = lea(player, modeB, addrB);
 
-    PROGRAM[address] = valueA;
-    SET_OWNER(PROGRAM[address], player);
-    SET_OWNED(PROGRAM[address]);
-    STEP(player);
+    core[address] = valueA;
+    set_owner(&core[address], player);
+    increment_pc(player);
 
     return 0;
 }
@@ -155,14 +153,13 @@ int add(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueB = operand(player, modeB, addrB);
     int address = lea(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
-    int valB = modeB == MODE_IMMEDIATE ? valueB : DECODE(B, valueB);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
+    int valB = modeB == MODE_IMMEDIATE ? valueB : decode(PLAYER2, valueB);
 
-    PROGRAM[address] = valA + valB;
-    SET_OWNER(PROGRAM[address], player);
-    SET_OWNED(PROGRAM[address]);
+    core[address] = valA + valB;
+    set_owner(&core[address], player);
 
-    STEP(player);
+    increment_pc(player);
 
     return 0;
 }
@@ -173,14 +170,13 @@ int sub(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueB = operand(player, modeB, addrB);
     int address = lea(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
-    int valB = modeB == MODE_IMMEDIATE ? valueB : DECODE(B, valueB);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
+    int valB = modeB == MODE_IMMEDIATE ? valueB : decode(PLAYER2, valueB);
 
-    PROGRAM[address] = valB - valA;
-    SET_OWNER(PROGRAM[address], player);
-    SET_OWNED(PROGRAM[address]);
+    core[address] = valB - valA;
+    set_owner(&core[address], player);
 
-    STEP(player);
+    increment_pc(player);
 
     return 0;
 }
@@ -199,10 +195,10 @@ int jmz(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueA = operand(player, modeA, addrA);
     unsigned long valueB = operand(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
-    int valB = modeB == MODE_IMMEDIATE ? valueB : DECODE(B, valueB);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
+    int valB = modeB == MODE_IMMEDIATE ? valueB : decode(PLAYER2, valueB);
 
-    STEP(player);
+    increment_pc(player);
 
     if (valB == 0)
         programCounters[player] = valA;
@@ -215,10 +211,10 @@ int jmg(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueA = operand(player, modeA, addrA);
     unsigned long valueB = operand(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
-    int valB = modeB == MODE_IMMEDIATE ? valueB : DECODE(B, valueB);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
+    int valB = modeB == MODE_IMMEDIATE ? valueB : decode(PLAYER2, valueB);
 
-    STEP(player);
+    increment_pc(player);
 
     if (valB > 0)
         programCounters[player] = valA;
@@ -231,16 +227,15 @@ int djz(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueA = operand(player, modeA, addrA);
     int address = lea(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
 
-    STEP(player);
+    increment_pc(player);
 
-    PROGRAM[address]--;
-    if (PROGRAM[address] == 0)
+    core[address]--;
+    if (core[address] == 0)
         programCounters[player] = valA;
 
-    SET_OWNER(PROGRAM[address], player);
-    SET_OWNED(PROGRAM[address]);
+    set_owner(&core[address], player);
 
     return 0;
 }
@@ -250,14 +245,14 @@ int cmp(int player, int modeA, int addrA, int modeB, int addrB)
     unsigned long valueA = operand(player, modeA, addrA);
     unsigned long valueB = operand(player, modeB, addrB);
 
-    int valA = modeA == MODE_IMMEDIATE ? valueA : DECODE(A, valueA);
-    int valB = modeB == MODE_IMMEDIATE ? valueB : DECODE(B, valueB);
+    int valA = modeA == MODE_IMMEDIATE ? valueA : decode(PLAYER1, valueA);
+    int valB = modeB == MODE_IMMEDIATE ? valueB : decode(PLAYER2, valueB);
 
-    STEP(player);
+    increment_pc(player);
 
     // move one more
     if (valA != valB)
-        STEP(player);
+        increment_pc(player);
 
     return 0;
 }
@@ -292,7 +287,7 @@ void showcore()
         printf("%03x: ", r * row_length);
         for (int c = 0; c < row_length; c++)
         {
-            unsigned long instruction = PROGRAM[r * row_length + c];
+            unsigned long instruction = core[r * row_length + c];
             int owned = instruction & TAKEN_MASK;
 
             if (owned)
@@ -319,8 +314,8 @@ int execute(int player, unsigned long instruction)
     int addrModeB = (instruction & OP_B_ADDRMODE_MASK) >> OFFSET_B_ADDRMODE;
     int addrB = (instruction & OP_B_ADDR_MASK) >> OFFSET_B_ADDR;
 
-    addrA = FROMSTORAGE(addrA);
-    addrB = FROMSTORAGE(addrB);
+    addrA = from_storage(addrA);
+    addrB = from_storage(addrB);
 
     if (instruction == 0)
     {
@@ -338,7 +333,7 @@ void runsimulation()
 
         for (int player = 0; player <= 1; player++)
         {
-            unsigned long instruction = PROGRAM[programCounters[player]];
+            unsigned long instruction = core[programCounters[player]];
             disassemble_instruction(instruction);
 
             showcore();
@@ -386,9 +381,8 @@ void place(unsigned long *program, int size, int location, unsigned int player)
     // place the program in memory
     for (int ip = 0; ip < size; ip++)
     {
-        PROGRAM[(ip + location) % CORESIZE] = program[ip];
-        SET_OWNER(PROGRAM[(ip + location) % CORESIZE], player);
-        SET_OWNED(PROGRAM[(ip + location) % CORESIZE]);
+        core[(ip + location) % CORESIZE] = program[ip];
+        set_owner(&core[(ip + location) % CORESIZE], player);
     }
 
     // set the pc for the player

@@ -1,3 +1,8 @@
+# Outputs
+rdasm
+rasm
+battle
+
 # Prerequisites
 *.d
 
