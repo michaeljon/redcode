@@ -1,0 +1,10 @@
+DAT 0 ; relative pointer to source address
+DAT 99 ; relative pointer to dest address
+MOV @-2 @-1 ; copy source to dest
+CMP -3 #9 ; if all 10 lines have been copied…
+JMP 4 ; …then leave the loop
+ADD #1 -5 ; otherwise, increment source addr
+ADD #1 -5 ; …and dest addr…
+JMP -5 ; …and continue the loop
+MOV #99 93 ; restore the starting address
+JMP 93 ; jump to the new copy

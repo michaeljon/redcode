@@ -1,0 +1,70 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "(gdb) rasm",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/rasm",
+      "args": ["-i", "dwarf.redcode", "-o", "dwarf.a"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "Build assembler"
+    },
+
+    {
+      "name": "(gdb) rdasm",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/rdasm",
+      "args": ["-i", "program.a"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "Build disassembler"
+    },
+
+    {
+      "name": "(gdb) battle",
+      "type": "cppdbg",
+      "request": "launch",
+      "program": "${workspaceFolder}/battle",
+      "args": ["-1", "dwarf.a", "-2", "imp.a", "-s", "0"],
+      "stopAtEntry": false,
+      "cwd": "${workspaceFolder}",
+      "environment": [],
+      "externalConsole": false,
+      "MIMode": "lldb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ],
+      "preLaunchTask": "Build simulator"
+    }
+  ]
+}
